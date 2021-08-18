@@ -33,6 +33,7 @@
 #if (defined(VTK_BENCHMARK_NATIVE) || defined(VTK_BENCHMARK_INTROSPECTION))
 #include <chrono>
 #include <utility>
+#include <fstream>
 
 typedef std::chrono::high_resolution_clock::time_point time_var;
 
@@ -71,10 +72,6 @@ static std::unordered_map<vtkObjectBase *, PyObject *> nodes;
  */
 PyObject *PyVtk_InitIntrospector()
 {
-	/* Activating virtual environment */
-	const wchar_t *sPyHome = L"venv";
-	Py_SetPythonHome(sPyHome);
-
 	/* Initializing Python environment and setting PYTHONPATH. */
 	Py_Initialize();
 
@@ -944,10 +941,6 @@ void test_introspection()
 #ifdef VTK_BENCHMARK_NATIVE
 PyObject *init_python()
 {
-	/* Activating virtual environment */
-	const wchar_t *sPyHome = L"venv";
-	Py_SetPythonHome(sPyHome);
-
 	/* Initializing Python environment and setting PYTHONPATH. */
 	Py_Initialize();
 
@@ -1073,18 +1066,15 @@ int main(int argc, char *argv[])
 		printf("Object creation failed\n");
 	}
 
-	const char *height = PyVtk_GetVtkObjectProperty(pIntrospector, pConeSource, "Height", "dbl");
+	const char *height = PyVtk_GetVtkObjectProperty(pIntrospector, pConeSource, "Height", "f");
 	if (height == NULL)
 	{
 		printf("Get object attribute failed\n");
 	}
 
-	if (!PyVtk_SetVtkObjectProperty(pIntrospector, pConeSource, "Height", "dbl::2.0"))
-	{
-		printf("Set object attribute failed\n");
-	}
+	PyVtk_SetVtkObjectProperty(pIntrospector, pConeSource, "Height", "f", "2.0");
 
-	const char *newHeight = PyVtk_GetVtkObjectProperty(pIntrospector, pConeSource, "Height", "dbl");
+	const char *newHeight = PyVtk_GetVtkObjectProperty(pIntrospector, pConeSource, "Height", "f");
 	if (strcmp(height, newHeight) == 0)
 	{
 		printf("Set-Get object attribute failed\n");
@@ -1215,25 +1205,53 @@ int main(int argc, char *argv[])
 #endif /* VTK_COMLPEX_TEST */
 
 #ifdef VTK_BENCHMARK_NATIVE
-	time_execution_data.clear();
 	timed_execution_v("main", test_native);
 
-	printf("\n\n==NATIVE TEST\n");
+	// Setup
+	bool exists_dumpfile = std::ifstream("dump_native_cpp.csv").good();
+	std::ofstream dumpfile("dump_native_cpp.csv", std::ofstream::out | std::ofstream::app);
+	if (!exists_dumpfile)
+	{
+		for (auto data : time_execution_data)
+		{
+			dumpfile << data.first << ",";
+		}
+		dumpfile << std::endl;
+		dumpfile.flush();
+	}
+
 	for (auto data : time_execution_data)
 	{
-		printf("%s, %.10f\n", data.first, data.second);
+		dumpfile << data.second << ",";
 	}
+	dumpfile << std::endl;
+	dumpfile.flush();
+	dumpfile.close();
 #endif /* VTK_BENCHMARK_NATIVE */
 
 #ifdef VTK_BENCHMARK_INTROSPECTION
-	time_execution_data.clear();
 	timed_execution_v("main", test_introspection);
 
-	printf("\n\n==INTROSPECTION TEST\n");
+	// Setup
+	bool exists_dumpfile = std::ifstream("dump_introspection_cpp.csv").good();
+	std::ofstream dumpfile("dump_introspection_cpp.csv", std::ofstream::out | std::ofstream::app);
+	if (!exists_dumpfile)
+	{
+		for (auto data : time_execution_data)
+		{
+			dumpfile << data.first << ",";
+		}
+		dumpfile << std::endl;
+		dumpfile.flush();
+	}
+
 	for (auto data : time_execution_data)
 	{
-		printf("%s, %.10f\n", data.first, data.second);
+		dumpfile << data.second << ",";
 	}
+	dumpfile << std::endl;
+	dumpfile.flush();
+	dumpfile.close();
 #endif /* VTK_BENCHMARK_INTROSPECTION */
 
 	return 0;
